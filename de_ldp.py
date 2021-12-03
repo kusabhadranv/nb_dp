@@ -212,11 +212,10 @@ class deldp:
 
 
 #Main function
-# filename = ["car.data.txt","connect-4.data","agaricus-lepiota.data.csv","kr-vs-kp.data.txt"]
-filename = ["car.data.txt"]
+filename = ["car.data.txt","connect-4.data","agaricus-lepiota.data.csv","kr-vs-kp.data.txt"]
 savename = ["car","connect","mushroom","chess"] 
 epsilons = [0.5, 1, 2, 3, 4, 5]                                                     #Epsilon values
-# seed = [496, 9999,   10,  117]
+
 
 for ind,file in enumerate(filename):
     location = os.path.join(os.path.dirname(__file__), 'datasets/'+file)            #Access dataset
