@@ -193,27 +193,24 @@ class deldp:
                 self.att_prob[clInd, att_prob_ind:(att_prob_ind+att_count)] = self.est_att_sum[clInd, att_prob_ind:(att_prob_ind+att_count)] / np.sum(self.est_att_sum[clInd, att_prob_ind:(att_prob_ind+att_count)])
                 att_prob_ind += att_count
     
-    # Testing NB
-    def test(self):
-        resClass = [None] * self.test_X.shape[0] # Create Empty list of length shape[0]
+
+    def classify(self):
+        test_result = [None] * self.test_X.shape[0] 
         for i in range(self.test_X.shape[0]):
-            resProb = np.zeros(len(self.class_prob))
-            for idx in range(len(self.class_prob)):
-                resProb[idx] = self.class_prob[idx] * np.prod(self.att_prob[idx, self.test_X[i] == 1])
-            resClass[i] = np.argmax(resProb)
-        return np.array(resClass)
-        
-    def testAcc(self):
-        predy = self.test()
-        # Accuracy
-        return 100 * (predy == self.test_y).sum() / len(predy)
+            test_prob = np.zeros(len(self.class_prob))
+            for ind in range(len(self.class_prob)):
+                test_prob[ind] = self.class_prob[ind] * np.prod(self.att_prob[ind, self.test_X[i] == 1])
+            test_result[i] = np.argmax(test_prob)                                    #Classify the sample
+        result_y = np.array(test_result)
+        return 100*(result_y==self.test_y).sum() / len(result_y)                     #Return the accuracy
+
 
 
 
 
 #Main function
-filename = ["car.data.txt","connect-4.data","agaricus-lepiota.data.csv","kr-vs-kp.data.txt"]
-savename = ["car","connect","mushroom","chess"] 
+filename = ["car.data.txt","connect-4.data","agaricus-lepiota.data.csv","kr-vs-kp.data.txt","nursery.data"]
+savename = ["car","connect","mushroom","chess","nursery"] 
 epsilons = [0.5, 1, 2, 3, 4, 5]                                                     #Epsilon values
 
 
@@ -233,7 +230,7 @@ for ind,file in enumerate(filename):
             nb.add_noise(eps)
             nb.aggregate()
             nb.train()
-            acc = nb.testAcc()
+            acc = nb.classify()
             total_acc += acc
         total_acc = total_acc / 100
         acc_mat[index,0] = eps                                                      #Set epsilon value in accuracy matrix
@@ -245,7 +242,7 @@ for ind,file in enumerate(filename):
     result_file = os.path.join(os.path.dirname(__file__),'results/'+savename[ind]+'_DE.csv')
     np.savetxt(result_file, acc_mat, delimiter=',', fmt='%.2f')
 
-
+    break
 
 
         
