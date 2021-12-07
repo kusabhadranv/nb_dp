@@ -6,14 +6,15 @@ from math import ceil
 
 
 
-class heldp:
+class ueldp:
 
     def __init__(self, dataFrame,enc): 
+
 
         data_X = data.iloc[:, :-1] 
         data_y = data.iloc[:, -1]  
         self.pre_process(data_X, data_y)
-        self.he_encode(enc)
+        self.ue_encode(enc)
 
 
     def pre_process(self, data_X, data_y):
@@ -27,7 +28,7 @@ class heldp:
             self.ft_cnt[i]=len(self.ft_cat[i])                                     ## of catergories in each column 
 
             
-        
+        data_y.is_copy = False                                                     #CHECK THIS!!!!
         y = data_y.astype('category')                                              #Convert label to category
         self.num_y = np.array(y.cat.codes)                                         #Convert label to number  
         self.cnt_y = y.cat.categories.tolist()                                     #All possible num_y
@@ -43,11 +44,10 @@ class heldp:
         self.enc_y = np.zeros((len(self.num_y), len(self.cnt_y)))                   #One hot encoding for y
         self.enc_y[np.arange(self.num_y.shape[0]), self.num_y.astype(int)] = 1
     
-    
-    def he_encode(self,enc):
-        
 
-        self.encoding = enc
+    def ue_encode(self, encoding):
+        
+        self.encoding = encoding
         X = self.enc_X
         y = self.enc_y
 
@@ -74,7 +74,6 @@ class heldp:
         clInd = len(self.cnt_y) * self.col_X
 
         self.full_mat[:, clInd:(clInd+self.col_y)] = y                              #Fill y values in full matrix
-
     
 
     # Split into training and testing data
@@ -96,7 +95,6 @@ class heldp:
         self.train_X = np.repeat(tmpMat, reqMult, axis=0)
         self.train_X = self.train_X[:rows_X, :]
 
-    
     def flip_coin(self, p, M, N, tol=0.1):                                          #Flip coin based on 
         condition = True
         while condition:                                                            #Loop until acceptable tolerance
@@ -106,25 +104,43 @@ class heldp:
             condition = np.abs(p - prop) > tol
         return rndMat
 
-    
     def probability(self, d=1, th=1):
 
-        self.p = 1 - (0.5 * np.exp( (self.eps * (th - 1) ) / 2 ))
-        self.q = 0.5 * np.exp( (-0.5 * self.eps * th) / 2 )
+        if self.encoding == "SUE":
+            self.p = np.exp(self.eps/2) / (1 + np.exp(self.eps/2))
+            self.q = 1.0 / (1 + np.exp(self.eps/2))
+        if self.encoding == "OUE":
+            self.p0 = np.exp(self.eps) / (1 + np.exp(self.eps))
+            self.q0 = 1.0 / (1 + np.exp(self.eps))
+            self.p1 = self.p2 = 0.5
+            self.p = self.p1
+            self.q = self.q0
+
     
     def add_noise(self, eps, threshold=0):
         
         np.random.seed()
         self.pert_mat = np.zeros(self.train_X.shape)        
         self.eps = eps
-    
-        L = np.random.laplace(scale=(2.0/eps), size=self.train_X.shape)              #Laplacian noise with scale (2/epsilon)
-        self.pert_mat = self.train_X + L                                             #Adding laplacian noise
 
-        if self.encoding == "THE":
-            self.pert_mat = (self.pert_mat >= threshold).astype(int)
-            self.probability(th=threshold)
+        if self.encoding == "SUE":
+            self.probability(eps)
+            K = self.flip_coin(self.p, self.train_X.shape[0], self.train_X.shape[1])
+            self.pert_mat = (self.train_X == K).astype(int)
         
+
+        if self.encoding == "OUE":
+            
+            self.probability(eps)            
+            count = len(self.ft_cnt) * len(self.cnt_y) + 1
+            K1 = self.flip_coin(self.p1, self.train_X.shape[0] * count, 1)
+            K0 = self.flip_coin(self.p0, self.train_X.shape[0] * (self.train_X.shape[1] - count), 1)
+    
+            self.pert_mat[self.train_X == 1] = (np.ones(K1.shape) == K1).astype(int)
+            self.pert_mat[self.train_X == 0] = (np.zeros(K0.shape) == K0).astype(int)
+        
+        
+
 
     def calc_sum(self, value, n, p, q):                                             #Calculate the sum
         result = (value - (n * q)) / (p - q)
@@ -134,6 +150,7 @@ class heldp:
             result = 1 
         return result
 
+    
     def aggregate(self):
         att_sum = np.zeros((len(self.cnt_y), sum(self.ft_cnt)))                     #Attribute sum
         cls_sum = np.zeros(len(self.cnt_y))                                         #Class sum
@@ -148,19 +165,15 @@ class heldp:
 
         self.est_att_sum = np.zeros(att_sum.shape)                                  #Attribute sum estimate
         self.est_cls_sum = np.zeros(cls_sum.shape)                                  #Class sum estimate
-  
-        if self.encoding == "SHE":
-            self.est_att_sum = att_sum
-            self.est_cls_sum  = cls_sum
 
-
-        if self.encoding == "THE":
-            self.est_att_sum = self.calc_sum(att_sum, self.pert_mat.shape[0], self.p, self.q)
-            self.est_cls_sum  = self.calc_sum(cls_sum, self.pert_mat.shape[0], self.p, self.q)
+        
+        self.est_att_sum = self.calc_sum(att_sum, self.pert_mat.shape[0], self.p, self.q)
+        self.est_cls_sum  = self.calc_sum(cls_sum, self.pert_mat.shape[0], self.p, self.q)
 
         self.est_att_sum = self.remove_random(self.est_cls_sum, self.est_att_sum)
 
-    
+
+
     def remove_random(self, class_sum, att_sum):                                    #Subtract random values from attribute sum
         for clInd in range(len(self.cnt_y)):
             fColIdx = 0
@@ -173,7 +186,8 @@ class heldp:
         elif att_sum <= 0:
             att_sum = 1 
         return att_sum
-    
+
+
     def train(self):                                                                                                                                    
         self.att_prob = np.zeros(self.est_att_sum.shape)                            
         self.class_prob  = np.zeros(self.est_cls_sum.shape)
@@ -205,16 +219,16 @@ class heldp:
 filename = ["car.data.txt","connect-4.data","agaricus-lepiota.data.csv","kr-vs-kp.data.txt","nursery.data"]
 savename = ["car","connect","mushroom","chess","nursery"] 
 epsilons = [0.5, 1, 2, 3, 4, 5]                                                     #Epsilon values
-encoding = ["THE","SHE"]                                                            #0 - THE | 1 - SHE       
-enc_id = 1                                                                             
+encoding = ["OUE","SUE"]                                                            #0 - OUE | 1 - SUE       
+enc_id = 1                                                                            
 
 
 for ind,file in enumerate(filename):
     location = os.path.join(os.path.dirname(__file__), 'datasets/'+file)            #Access dataset
     data = pd.read_csv(location)                                                    #Read dataset in dataframe
     
-    nb = heldp(data, encoding[enc_id])                                              #Initialize and pre_process data
-    nb.split(train_size=0.90, random_state=496)                                     #Split data into train & test
+    nb = ueldp(data, encoding[enc_id])                                              #Initialize and pre_process data
+    nb.split(train_size=0.95, random_state=496)                                     #Split data into train & test
     acc_mat = np.zeros((len(epsilons), 2))                                          #Accuracy matrix of excel sheet
 
     print("Processing dataset:",file)
@@ -237,8 +251,5 @@ for ind,file in enumerate(filename):
 
     result_file = os.path.join(os.path.dirname(__file__),'results/'+savename[ind]+'_'+encoding[enc_id]+'.csv')
     np.savetxt(result_file, acc_mat, delimiter=',', fmt='%.2f')
-
-
-
-   
+        
 

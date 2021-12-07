@@ -27,7 +27,7 @@ class deldp:
             self.ft_cnt[i]=len(self.ft_cat[i])                                     ## of catergories in each column 
 
             
-        data_y.is_copy = False                                                     #CHECK THIS!!!!
+        
         y = data_y.astype('category')                                              #Convert label to category
         self.num_y = np.array(y.cat.codes)                                         #Convert label to number  
         self.cnt_y = y.cat.categories.tolist()                                     #All possible num_y
