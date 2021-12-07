@@ -242,7 +242,6 @@ for ind,file in enumerate(filename):
     result_file = os.path.join(os.path.dirname(__file__),'results/'+savename[ind]+'_DE.csv')
     np.savetxt(result_file, acc_mat, delimiter=',', fmt='%.2f')
 
-    break
 
 
         
