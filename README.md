@@ -1,5 +1,5 @@
 # nb_dp
-A Naive Bayes classifier with Local Differential Privacy incorporated based on 5 LDP protocols used for frequecy estimation.
+A Naive Bayes classifier with Local Differential Privacy incorporated with 5 LDP used for frequecy estimation.
 
 Protocols|
 ---|
